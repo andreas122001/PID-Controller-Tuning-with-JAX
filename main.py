@@ -6,45 +6,38 @@ from abc import ABC, abstractmethod, abstractclassmethod
 from controller import AbstractController, DefaultController, NeuralController
 from plant import AbstractPlant, BathtubPlant
 import matplotlib.pyplot as plt
+from config import h_params
 
-h_params = {
-    'plant_name': 'bathtub',
-    'controller_name': 'default',
-    'nn_hidden_layers': [2,2],
-    'nn_activation': ['Tanh'],
-    'nn_init_weight_range': [-10,10],
-    'nn_init_bias_range': [-10,10],
-    'epochs': 10,
-    'runs_per_epoch': 10,
-    'learning_rate': 0.01,
-    'noise_range': [-0.05, 0.05],
-    'bathtub_area': 100,
-    'bathtub_drain_area': 1,
-    'bathtub_init_height': 5,
-    'cournot_max_price': 100,
-    'cournot_margin_cost': 0.1,
-    'param1': 0,
-    'param2': 0,
-    'enable_jit': True
-}
+# Read config from file
+# with open("./config.json") as f:
+#     h_params = json.load(f)
 
 class ConSys:
-    def __init__(self, controller: AbstractController, plant: AbstractPlant) -> None:
+    def __init__(self, controller: AbstractController, 
+                        plant: AbstractPlant) -> None:
         self.controller = controller
         self.plant = plant
 
-    def run(self, epochs, lr=0.05, steps_per_epoch=10):
-        x_mse = []
+    def train(self, epochs, 
+                learning_rate=0.05, 
+                steps_per_epoch=10, 
+                noise_range=[-.1,.1], 
+                enable_jit=False):
+        
+        # Noise function
+        gen_noise = lambda n: np.random.uniform(*noise_range, n)
 
+        x_mse = []
         params = self.controller.init_params()
         gradfunc = jax.value_and_grad(self.simulate)
-        gradfunc = jax.jit(gradfunc, static_argnames=['steps'],)
+        if enable_jit:
+            gradfunc = jax.jit(gradfunc, static_argnames=['steps'])
         for _ in tqdm(range(epochs)):
-            D = np.random.uniform(-0.1, 0.1, steps_per_epoch)#jnp.zeros(steps)
+            D = gen_noise(steps_per_epoch) #jnp.zeros(steps)
             target, state = self.plant.reset()
             
             mse, gradients = gradfunc(params, state, target, D, steps_per_epoch, )
-            params = self.controller.update_params(params, lr, gradients)
+            params = self.controller.update_params(params, learning_rate, gradients)
 
             print("\n", mse, gradients)
             x_mse.append(mse)
@@ -54,7 +47,7 @@ class ConSys:
         target, state = self.plant.reset()
         err = target - state
         err_hist = jnp.array([err])
-        D = np.random.uniform(-0.05, 0.05, steps_per_epoch)
+        D = gen_noise(steps_per_epoch)
         for t in range(steps_per_epoch):
             x_state.append(state)
             U = self.controller.step(params, err, err_hist) # calc control signal
@@ -94,10 +87,10 @@ class ConSys:
         return new_state, new_error, err_hist
 
 if __name__=="__main__":
-    plant = BathtubPlant(5.0)
+    plant = BathtubPlant(**h_params['plant']['bathtub'])
     # controller = NeuralController(3,1,[],['linear'])
     controller = DefaultController()
     system = ConSys(controller, plant)
-    system.run(epochs=100)
+    system.train(**h_params['system'])
     # print(system.simulate([1,0,0],2000))
 

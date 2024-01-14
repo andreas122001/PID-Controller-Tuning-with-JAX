@@ -10,8 +10,11 @@ class AbstractPlant(ABC):
         self.target = target
         self.reset()
 
-    @abstractmethod
     def step(self, state, U, D):
+        return self._step_function(state, U, D)
+
+    @abstractmethod
+    def _step_function(self, state, U, D):
         pass
 
     @abstractmethod
@@ -30,7 +33,7 @@ class BathtubPlant(AbstractPlant):
         self.CROSS_SECTION_DRAIN = cross_section
         self.GRAVITY = gravity
     
-    def step(self, state, U, D):
+    def _step_function(self, state, U, D):
         V = jnp.sqrt(2*self.GRAVITY*state)
         Q = V*self.CROSS_SECTION_DRAIN
         dB = U + D - Q
