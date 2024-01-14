@@ -3,6 +3,7 @@ import jax
 import jax.numpy as jnp
 from tqdm import tqdm
 from abc import ABC, abstractmethod, abstractclassmethod
+from typing import Tuple
 
 class AbstractPlant(ABC):
     def __init__(self, target) -> None:
@@ -14,7 +15,8 @@ class AbstractPlant(ABC):
         pass
 
     @abstractmethod
-    def reset(self):
+    def reset(self) -> Tuple[float, float]:
+        """Returns tuple of state and target, (state, target)"""
         pass
 
 
@@ -24,20 +26,19 @@ class BathtubPlant(AbstractPlant):
                 cross_section=1, 
                 gravity=9.81) -> None:
         super().__init__(target)
-        self.A = area
-        self.C = cross_section
-        self.g = gravity
+        self.AREA = area
+        self.CROSS_SECTION_DRAIN = cross_section
+        self.GRAVITY = gravity
     
     def step(self, state, U, D):
-        V = jnp.sqrt(2*9.81*state)#jnp.sqrt(2*self.g*state)
-        Q = V*1#self.C
+        V = jnp.sqrt(2*self.GRAVITY*state)
+        Q = V*self.CROSS_SECTION_DRAIN
         dB = U + D - Q
-        dH = dB / 100#self.A
+        dH = dB / self.AREA
 
-        new_state = jnp.maximum(0, state + dH)
+        new_state = jnp.maximum(0, state + dH) # we can't have negative water...
         self.current_state = new_state
 
-        # n_state= n_state.item()
         return new_state
     
     def reset(self):

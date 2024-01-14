@@ -8,12 +8,18 @@ class AbstractController(ABC):
     def __init__(self) -> None:
         super().__init__()
 
-    @abstractmethod
-    def step(self, params, e, err_hist):
-        pass
+    def step(self, params, e, err_hist,) -> jax.Array:
+        # Calcualte PID-error values
+        de = (e - err_hist[-1])
+        ie = jnp.sum(jnp.array(err_hist))
+        x = jnp.array([e,ie,de])
 
-    def reset_error(self):
-        return jnp.array([])
+        # Perform controller calculation
+        return self._step_function(params, x)
+    
+    @abstractmethod
+    def _step_function(params, x) -> jax.Array:
+        pass
 
     @abstractmethod
     def init_params(self):
@@ -23,19 +29,11 @@ class AbstractController(ABC):
         return params - lr*gradient
 
 class DefaultController(AbstractController):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def step(self, params, e, err_hist):
-
-        de = e - err_hist[-1]
-        ie = jnp.sum(jnp.array(err_hist))
-
-        kp, kd, ki = params
-        return (kp*e + kd*de + ki*ie)
+    def _step_function(self, params, x):
+        return jnp.dot(params,x) # Lin.Alg. version of default PID formula
 
     def init_params(self):
-        return jnp.array([1,1,1], dtype=float)
+        return np.array([1,1,1], dtype=float)
 
 class StandardController(AbstractController):
     pass
@@ -57,14 +55,6 @@ class NeuralController(AbstractController):
         self.activation_functions = a_funcs
         self.layers = np.concatenate(([inputs], hidden_layers, [outputs])).astype(int)
         
-    def step(self, params, e, err_hist,) -> jax.Array:
-        # Calcualte PID-error values
-        de = (e - err_hist[-1])
-        ie = jnp.sum(jnp.array(err_hist))
-        x = jnp.array([e,ie,de])
-
-        return self._step_function(params, x)
-    
     def _step_function(self, params, x) -> jax.Array:
         for (w, b), a_func in zip(params, self.activation_functions):
             a = self.a_func_map[a_func.lower()]

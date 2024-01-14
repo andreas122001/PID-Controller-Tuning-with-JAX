@@ -25,36 +25,37 @@ h_params = {
     'cournot_margin_cost': 0.1,
     'param1': 0,
     'param2': 0,
+    'enable_jit': True
 }
 
 class ConSys:
     def __init__(self, controller: AbstractController, plant: AbstractPlant) -> None:
         self.controller = controller
         self.plant = plant
-        self.timesteps = 5
 
-    def run(self, epochs, lr=0.1, steps_per_epoch=50):
+    def run(self, epochs, lr=0.05, steps_per_epoch=10):
         x_mse = []
 
         params = self.controller.init_params()
         gradfunc = jax.value_and_grad(self.simulate)
-        # gradfunc = jax.jit(gradfunc, static_argnums=[3,4])
+        gradfunc = jax.jit(gradfunc, static_argnames=['steps'],)
         for _ in tqdm(range(epochs)):
-            D = np.random.uniform(-0.05, 0.05, steps_per_epoch)#jnp.zeros(steps)
+            D = np.random.uniform(-0.1, 0.1, steps_per_epoch)#jnp.zeros(steps)
             target, state = self.plant.reset()
             
-            mse, gradients = gradfunc(params, state, D, target, steps_per_epoch, )
+            mse, gradients = gradfunc(params, state, target, D, steps_per_epoch, )
             params = self.controller.update_params(params, lr, gradients)
 
             print("\n", mse, gradients)
             x_mse.append(mse)
 
+        steps_per_epoch = 250
         x_state = []
         target, state = self.plant.reset()
         err = target - state
         err_hist = jnp.array([err])
-        D = np.random.uniform(-0.05, 0.05, 250)
-        for t in range(1000):
+        D = np.random.uniform(-0.05, 0.05, steps_per_epoch)
+        for t in range(steps_per_epoch):
             x_state.append(state)
             U = self.controller.step(params, err, err_hist) # calc control signal
             state = self.plant.step(state, U, D[t]) # calc plant output
@@ -66,29 +67,36 @@ class ConSys:
         plt.show()
         print(params)
 
-    def simulate(self, params, state, noise, target, timesteps=20):
+    def simulate(self, params, state, target, noise_vector, steps):
+        """Main differentiable simulation function. Also jittable."""
 
-        # Simulate t timesteps
-        err = target - state
-        err_hist = jnp.array([err])
-        for t in range(timesteps):
-            U = self.controller.step(params, err, err_hist) # calc control signal
-            state = self.plant.step(state, U, noise[t]) # calc plant output
-            err = target - state
-            err_hist = jnp.append(err_hist, err)
-            # print(state)
-        return jnp.mean(jnp.array([e**2 for e in err_hist])) # mean squared error
+        # Initialize error and history
+        error = target - state
+        err_hist = jnp.array([error])
+        
+        for t in range(steps):
+            # Perform one step
+            state, error, err_hist = self._step_once(
+                params, state, error, err_hist, target, noise_vector[t]
+            )
+            
+        return jnp.sum(jnp.array([e**2 for e in err_hist]))
 
-    def step(self, params, err, err_hist, d):
-        err = self.plant.target - state
-        err_hist = jnp.append(err_hist, err)
-        U = self.controller.step(params, err, err_hist) # calc control signal
-        state = self.plant.step(state, U, d) # calc plant output
+    def _step_once(self, params, state, error, err_hist, target, noise):
+        """Performs one step of PID simulation"""
+        # Update plant and controller
+        signal = controller.step(params, error, err_hist)
+        new_state = plant.step(state, signal, noise)
+
+        # Calculate error
+        new_error = target - new_state
+        err_hist = jnp.append(err_hist, new_error)
+        return new_state, new_error, err_hist
 
 if __name__=="__main__":
     plant = BathtubPlant(5.0)
-    controller = NeuralController(3,1,[],['linear'])
-    # controller = DefaultController()
+    # controller = NeuralController(3,1,[],['linear'])
+    controller = DefaultController()
     system = ConSys(controller, plant)
     system.run(epochs=100)
     # print(system.simulate([1,0,0],2000))
