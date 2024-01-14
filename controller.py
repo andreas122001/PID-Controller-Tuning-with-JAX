@@ -57,19 +57,20 @@ class NeuralController(AbstractController):
         self.activation_functions = a_funcs
         self.layers = np.concatenate(([inputs], hidden_layers, [outputs])).astype(int)
         
-    def step(self, params, e, err_hist, activation_functions) -> jax.Array:
+    def step(self, params, e, err_hist,) -> jax.Array:
+        # Calcualte PID-error values
         de = (e - err_hist[-1])
         ie = jnp.sum(jnp.array(err_hist))
-        x = jnp.array([e,de,ie])
+        x = jnp.array([e,ie,de])
 
-        for (w, b), a_func in zip(params, activation_functions):
+        return self._step_function(params, x)
+    
+    def _step_function(self, params, x) -> jax.Array:
+        for (w, b), a_func in zip(params, self.activation_functions):
             a = self.a_func_map[a_func.lower()]
             x = jnp.dot(x, w) + b
             x = a(x.flatten())
         return x.flatten()[0]
-    
-    def _step(self, params, pid):
-        e, ie, de = pid
     
     def init_params(self):
         sender = self.layers[0]

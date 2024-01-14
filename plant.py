@@ -29,12 +29,12 @@ class BathtubPlant(AbstractPlant):
         self.g = gravity
     
     def step(self, state, U, D):
-        V = jnp.sqrt(2*self.g*state)
-        Q = V*self.C
+        V = jnp.sqrt(2*9.81*state)#jnp.sqrt(2*self.g*state)
+        Q = V*1#self.C
         dB = U + D - Q
-        dH = dB / self.A
+        dH = dB / 100#self.A
 
-        new_state = max(0, state + dH)
+        new_state = jnp.maximum(0, state + dH)
         self.current_state = new_state
 
         # n_state= n_state.item()
@@ -42,7 +42,7 @@ class BathtubPlant(AbstractPlant):
     
     def reset(self):
         self.current_state = self.target
-        return self.target
+        return self.target, self.target
 
 class CournotCompetitionPlant(AbstractPlant):
     pass

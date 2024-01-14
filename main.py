@@ -33,52 +33,47 @@ class ConSys:
         self.plant = plant
         self.timesteps = 5
 
-    def run(self, epochs):
+    def run(self, epochs, lr=0.1, steps_per_epoch=50):
         x_mse = []
-        steps = 50
 
-        D = np.random.rand(steps) * 0.001 * 2 - 0.001#jnp.zeros(steps)
-        state = self.plant.reset()
-        target = self.plant.target
-
-        lr = 0.09
         params = self.controller.init_params()
         gradfunc = jax.value_and_grad(self.simulate)
+        # gradfunc = jax.jit(gradfunc, static_argnums=[3,4])
         for _ in tqdm(range(epochs)):
-            err_hist = jnp.array([])
-            mse, gradients = gradfunc(params, state, D, target, err_hist, steps, )
+            D = np.random.uniform(-0.05, 0.05, steps_per_epoch)#jnp.zeros(steps)
+            target, state = self.plant.reset()
+            
+            mse, gradients = gradfunc(params, state, D, target, steps_per_epoch, )
             params = self.controller.update_params(params, lr, gradients)
 
             print("\n", mse, gradients)
             x_mse.append(mse)
 
         x_state = []
-        state = self.plant.reset()
+        target, state = self.plant.reset()
         err = target - state
         err_hist = jnp.array([err])
-        for t in range(250):
+        D = np.random.uniform(-0.05, 0.05, 250)
+        for t in range(1000):
             x_state.append(state)
             U = self.controller.step(params, err, err_hist) # calc control signal
-            state = self.plant.step(state, U, 0.0) # calc plant output
+            state = self.plant.step(state, U, D[t]) # calc plant output
             err = target - state
             err_hist = jnp.append(err_hist, err)
         plt.plot(x_mse)
         plt.show()
         plt.plot(x_state)
         plt.show()
+        print(params)
 
-    def simulate(self, params, state, D, target, err_hist, timesteps=20):
-
-        # Initialize plant/controller
-        # D = jnp.zeros(timesteps)#np.random.rand(timesteps) * 0.001 * 2 - 0.001
+    def simulate(self, params, state, noise, target, timesteps=20):
 
         # Simulate t timesteps
-        # U = 0.0 # TODO: initialize: but how...?
         err = target - state
-        err_hist = jnp.append(err_hist, err)
+        err_hist = jnp.array([err])
         for t in range(timesteps):
             U = self.controller.step(params, err, err_hist) # calc control signal
-            state = self.plant.step(state, U, D[t]) # calc plant output
+            state = self.plant.step(state, U, noise[t]) # calc plant output
             err = target - state
             err_hist = jnp.append(err_hist, err)
             # print(state)
@@ -92,9 +87,9 @@ class ConSys:
 
 if __name__=="__main__":
     plant = BathtubPlant(5.0)
-    controller = NeuralController(3,1,[5,5,3],['relu','relu','relu','sigmoid'])
+    controller = NeuralController(3,1,[],['linear'])
     # controller = DefaultController()
     system = ConSys(controller, plant)
-    system.run(epochs=200)
+    system.run(epochs=100)
     # print(system.simulate([1,0,0],2000))
 
