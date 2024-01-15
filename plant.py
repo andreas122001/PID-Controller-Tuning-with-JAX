@@ -1,3 +1,4 @@
+from jax._src.basearray import Array as Array
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -7,7 +8,7 @@ from typing import Tuple
 
 class AbstractPlant(ABC):
     def __init__(self, target) -> None:
-        self.target = target
+        self.TARGET = target
         self.reset()
 
     def step(self, state, U, D) -> jax.Array:
@@ -40,21 +41,30 @@ class BathtubPlant(AbstractPlant):
         dH = dB / self.AREA
 
         new_state = jnp.maximum(0, state + dH) # we can't have negative water...
-        self.current_state = new_state
+        error = self.TARGET - new_state
 
-        return new_state
+        return new_state, error
     
     def reset(self) -> Tuple[float, float]:
-        self.current_state = self.target
-        return self.target, self.target
+        return self.TARGET, self.TARGET
 
 class CournotCompetitionPlant(AbstractPlant):
     pass
 
 class RobotArmPlant(AbstractPlant):
-    def __init__(self, target, state0) -> None:
+    def __init__(self, target, state0, resistance) -> None:
         super().__init__(target)
-        self.state0 = state0
+        self.STATE0 = state0
+        self.RESISTANCE = resistance
+
+    def _step_function(self, state, U, D) -> Array:
+        
+        state['acceleration'] += jnp.maximum(U-self.RESISTANCE, 0)
+        state['speed'] += state['acceleration']
+        state = state['position'] + state['speed'] + D
+
+        error = self.TARGET - state.position
+        return state, error
 
 class HyperparamTuner(AbstractPlant):
     pass
