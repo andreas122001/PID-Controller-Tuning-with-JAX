@@ -89,19 +89,18 @@ class ConSys:
         for t in range(steps):
             # Perform one step
             state, error, err_hist = self._step_once(
-                params, state, error, err_hist, target, noise_vector[t]
+                params, state, error, err_hist, noise_vector[t]
             )
             
         return jnp.sum(jnp.array([e**2 for e in err_hist]))
 
-    def _step_once(self, params, state, error, err_hist, target, noise):
+    def _step_once(self, params, state, error, err_hist, noise):
         """Performs one step of PID simulation"""
         # Update plant and controller
         signal = self.controller.step(params, error, err_hist)
-        new_state = self.plant.step(state, signal, noise)
+        new_state, new_error = self.plant.step(state, signal, noise)
 
-        # Calculate error
-        new_error = target - new_state
+        # Add error to history
         err_hist = jnp.append(err_hist, new_error)
         return new_state, new_error, err_hist
 

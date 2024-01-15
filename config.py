@@ -1,18 +1,18 @@
 h_params = {
     "system": {
-        "epochs": 10,
-        "steps_per_epoch": 10,
+        "epochs": 2000,
+        "steps_per_epoch": 20,
         "learning_rate": 0.01,
-        "noise_range": [-0.05, 0.05],
-        "enable_jit": False
+        "noise_range": [-0.1, 0.1],
+        "enable_jit": True
     },
     "controller": {
         "name": "default",
         "nn": {
             "hidden_layers": [2,2],
             "activations": ["Tanh"],
-            "init_weight_range": [-10,10],
-            "init_bias_range": [-10,10]
+            "init_weight_range": [0,10],
+            "init_bias_range": [0,10]
         }
     },
     "plant": {
