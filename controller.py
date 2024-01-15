@@ -10,6 +10,7 @@ class AbstractController(ABC):
         super().__init__()
 
     def step(self, params, e, err_hist,) -> jax.Array:
+        """Entry function for performing one step of controller simulation."""
         # Calcualte PID-error values
         de = (e - err_hist[-1])
         ie = jnp.sum(jnp.array(err_hist))
@@ -26,8 +27,11 @@ class AbstractController(ABC):
     def init_params(self):
         pass
 
-    def update_params(self, params, lr, gradient):
-        return params - lr*gradient
+    def update_params(self, params, lr, gradients):
+        # Use PyTrees to update general parameter structures 
+        return jax.tree_map(
+            lambda param, grad: param - lr*grad, params, gradients
+        )
 
 class DefaultController(AbstractController):
     def _step_function(self, params, x):
@@ -51,15 +55,17 @@ class NeuralController(AbstractController):
         
     def __init__(self, inputs, outputs, hidden_layers, a_funcs) -> None:
         super().__init__()
-        # if len(a_funcs) != len(hidden_layers) + 1:
-        #     raise Exception(f"Expected {len(hidden_layers) + 1} activation functions.")
+        if len(a_funcs) != len(hidden_layers) + 1:
+            raise Exception(f"Expected {len(hidden_layers) + 1} activation functions, but got {len(a_funcs)}.")
+        
+        # Class constants
         self.activation_functions = a_funcs
         self.layers = np.concatenate(([inputs], hidden_layers, [outputs])).astype(int)
         
     def _step_function(self, params, x) -> jax.Array:
-        for (w, b), a_func in zip(params, self.activation_functions):
-            a = self.a_func_map[a_func.lower()]
-            x = jnp.dot(x, w) + b
+        for (layer), a_func_name in zip(params, self.activation_functions):
+            a = self.a_func_map[a_func_name.lower()]
+            x = jnp.dot(x, layer['weights']) + layer['biases']
             x = a(x.flatten())
         return x.flatten()[0]
     
@@ -67,14 +73,9 @@ class NeuralController(AbstractController):
         sender = self.layers[0]
         params = []
         for receiver in self.layers[1:]:
-            weights = np.random.uniform(-1, 1, (sender, receiver))
-            biases = np.random.uniform(-1, 1, (1, receiver))
+            params.append({
+                'weights': np.random.uniform(-1, 1, (sender, receiver)),
+                'biases': np.random.uniform(-1, 1, (1, receiver))
+            })
             sender = receiver
-            params.append([weights, biases])
-        return params
-
-    def update_params(self, params, lr, gradients):
-        for i, (w_grad, b_grad) in enumerate(gradients):
-            params[i][0] -= lr*w_grad
-            params[i][1] -= lr*b_grad
         return params
