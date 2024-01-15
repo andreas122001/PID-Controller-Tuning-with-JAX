@@ -10,11 +10,11 @@ class AbstractPlant(ABC):
         self.target = target
         self.reset()
 
-    def step(self, state, U, D):
+    def step(self, state, U, D) -> jax.Array:
         return self._step_function(state, U, D)
 
     @abstractmethod
-    def _step_function(self, state, U, D):
+    def _step_function(self, state, U, D) -> jax.Array:
         pass
 
     @abstractmethod
@@ -33,7 +33,7 @@ class BathtubPlant(AbstractPlant):
         self.CROSS_SECTION_DRAIN = cross_section
         self.GRAVITY = gravity
     
-    def _step_function(self, state, U, D):
+    def _step_function(self, state, U, D) -> jax.Array:
         V = jnp.sqrt(2*self.GRAVITY*state)
         Q = V*self.CROSS_SECTION_DRAIN
         dB = U + D - Q
@@ -44,12 +44,17 @@ class BathtubPlant(AbstractPlant):
 
         return new_state
     
-    def reset(self):
+    def reset(self) -> Tuple[float, float]:
         self.current_state = self.target
         return self.target, self.target
 
 class CournotCompetitionPlant(AbstractPlant):
     pass
+
+class RobotArmPlant(AbstractPlant):
+    def __init__(self, target, state0) -> None:
+        super().__init__(target)
+        self.state0 = state0
 
 class HyperparamTuner(AbstractPlant):
     pass
