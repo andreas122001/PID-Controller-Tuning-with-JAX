@@ -4,26 +4,23 @@ import jax.numpy as jnp
 from tqdm import tqdm
 from abc import ABC, abstractmethod, abstractclassmethod
 from controller import AbstractController, DefaultController, NeuralController
-from plant import AbstractPlant, BathtubPlant
+from plant import AbstractPlant, BathtubPlant, CournotPlant, RobotArmPlant
 import matplotlib.pyplot as plt
 from config import h_params
-
-# Read config from file
-# with open("./config.json") as f:
-#     h_params = json.load(f)
 
 class ConSys:
     def __init__(self, controller: AbstractController, 
                         plant: AbstractPlant) -> None:
         self.controller = controller
         self.plant = plant
-        self._step_once = jax.jit(self._step_once) # should be jitted anyway
+        self._step_once = jax.jit(self._step_once) # should be jitted anyway, why not
 
     def train(self, epochs, 
                 learning_rate=0.05, 
                 steps_per_epoch=10, 
                 noise_range=[-.1,.1], 
-                enable_jit=False):
+                enable_jit=False,
+                enable_param_logging=False):
         
         # Noise function
         gen_noise = lambda n: np.random.uniform(*noise_range, n)
@@ -35,49 +32,45 @@ class ConSys:
             print("Compiling simulation...")
             gradfunc = jax.jit(gradfunc, static_argnames=['steps'])
 
-        x_mse = [0]*epochs
-        log_params = [0]*epochs
+        mse_log = [0]*(epochs)
+        if enable_param_logging:
+            param_log = [0]*(epochs)
         for i in tqdm(range(epochs)):
-            log_params[i] = params
-
-            D = gen_noise(steps_per_epoch) #jnp.zeros(steps)
+            
+            # Initialize target, state and noise vector
+            D = gen_noise(steps_per_epoch)
             target, state = self.plant.reset()
             
+            # Compute gradients and error, and update parameters
             mse, gradients = gradfunc(params, state, target, D, steps_per_epoch, )
             params = self.controller.update_params(params, learning_rate, gradients)
 
-            # print("\n", mse, gradients, end="\r")
-            x_mse[i] = mse
+            # Log current loss (and parameters)
+            mse_log[i] = mse
+            if enable_param_logging:
+                param_log[i] = params
 
-        steps_per_epoch = 250
-        log_state = [0]*steps_per_epoch
-        target, state = self.plant.reset()
-        err = target - state
-        err_hist = jnp.array([err])
-        D = gen_noise(steps_per_epoch)
-        for t in tqdm(range(steps_per_epoch)):
+        return params, mse_log
+    
+    def test(self, params, steps,
+                noise_range=[-.1,.1]):
+        """Test a system using tuned parameters. Returns accumulated simulation state and error."""
+
+        # Initialize variables
+        state, target = self.plant.reset()
+        error = target - state
+        err_hist = jnp.array([error])
+        D = np.random.uniform(*noise_range, steps)
+
+        state_log = [0]*steps
+
+        for t in tqdm(range(steps)):
             state, _, err_hist = self._step_once(
-                params, state, err, err_hist, target, D[t])
-            log_state[t] = state
-        # for t in range(steps_per_epoch):
-        #     U = self.controller.step(params, err, err_hist) # calc control signal
-        #     state = self.plant.step(state, U, D[t]) # calc plant output
-        #     err = target - state
-        #     err_hist = jnp.append(err_hist, err)
-        plt.plot(x_mse)
-        plt.title("Error")
-        plt.show()
-        plt.plot(log_state)
-        plt.title("State")
-        # plt.plot(U_state)
-        plt.show()
-        plt.plot(np.array(log_params)[:,0])
-        plt.plot(np.array(log_params)[:,1])
-        plt.plot(np.array(log_params)[:,2])
-        plt.title("Parameters")
-        plt.show()
+                params, state, error, err_hist, D[t])
+            state_log[t] = state
 
-        return params, x_mse
+        return state_log, err_hist
+
 
     def _simulate_one_epoch(self, params, state, target, noise_vector, steps):
         """Main differentiable simulation function. Also jittable."""
@@ -86,35 +79,72 @@ class ConSys:
         error = target - state
         err_hist = jnp.array([error])
         
+        # Simulate PID and accumulate error
         for t in range(steps):
-            # Perform one step
             state, error, err_hist = self._step_once(
                 params, state, error, err_hist, noise_vector[t]
             )
-            
+        
+        # Compute MSE from error history
         return jnp.sum(jnp.array([e**2 for e in err_hist]))
 
     def _step_once(self, params, state, error, err_hist, noise):
-        """Performs one step of PID simulation"""
-        # Update plant and controller
+        """Performs one step of PID simulation and updates state and error."""
+
+        # Update controller with current error and error history
         signal = self.controller.step(params, error, err_hist)
+        # Update plant with signal from controller
         new_state, new_error = self.plant.step(state, signal, noise)
 
-        # Add error to history
+        # Add error to history and return
         err_hist = jnp.append(err_hist, new_error)
         return new_state, new_error, err_hist
 
-    def sim_and_plot(self, params, steps):
-        # Log loss
-        # Log parameters
-        pass
 
 if __name__=="__main__":
-    plant = BathtubPlant(**h_params['plant']['bathtub'])
-    controller = NeuralController(3,1,[3],['linear','linear'])
-    # controller = DefaultController()
+    plant_name = h_params['plant']['name']
+    if plant_name == 'bathtub':
+        plant = BathtubPlant(**h_params['plant']['bathtub'])
+    elif plant_name == 'cournot':
+        plant = CournotPlant(**h_params['plant']['cournot'])
+    elif plant_name == 'robot':
+        plant = RobotArmPlant(**h_params['plant']['robot'])
+    else:
+        raise ValueError(f"Invalid plant name given: '{plant_name}'.")
+    
+    controller_name = h_params['controller']['name']
+    if controller_name == "default":
+        controller = DefaultController(**h_params['controller']['default'])
+    elif controller_name == "neural":
+        controller = NeuralController(**h_params['controller']['neural'])
+    else:
+        raise ValueError(f"Invalid controller name given: '{controller_name}'")
+
+    # Initialize and train system 
     system = ConSys(controller, plant)
-    params, mse = system.train(**h_params['system'])
-    print(params)
-    # print(system.simulate([1,0,0],2000))
+    params, mse_log = system.train(**h_params['system'])
+    
+    # Just some interesting logging/plotting
+    print(f"Tuned Parameters: {params}")
+    print("Logging MSE")
+    plt.title("Mean Squared Error (MSE)")
+    plt.xlabel("Timesteps")
+    plt.ylabel("MSE")
+    plt.plot(mse_log)
+    plt.tight_layout()
+    plt.show()
+
+    # Test the system
+    print("Testing parameters")
+    test_steps = 100
+    state_log, mse_log = system.test(params, test_steps)
+    
+    print("Test state over time")
+    plt.title(f"Simulation state over {test_steps} steps")
+    plt.xlabel("Timesteps")
+    plt.ylabel("Current state")
+    plt.ylim((4.5, 5.5)) # fit to this interval
+    plt.plot(state_log)
+    plt.tight_layout()
+    plt.show()
 

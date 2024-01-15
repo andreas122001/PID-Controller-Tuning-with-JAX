@@ -46,9 +46,9 @@ class BathtubPlant(AbstractPlant):
         return new_state, error
     
     def reset(self) -> Tuple[float, float]:
-        return self.TARGET, self.TARGET
+        return (self.TARGET, self.TARGET)
 
-class CournotCompetitionPlant(AbstractPlant):
+class CournotPlant(AbstractPlant):
     pass
 
 class RobotArmPlant(AbstractPlant):
@@ -65,6 +65,9 @@ class RobotArmPlant(AbstractPlant):
 
         error = self.TARGET - state.position
         return state, error
+    
+    def reset(self) -> Tuple[float, float]:
+        return self.STATE0, self.TARGET
 
 class HyperparamTuner(AbstractPlant):
     pass

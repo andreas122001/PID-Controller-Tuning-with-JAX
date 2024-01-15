@@ -53,17 +53,21 @@ class NeuralController(AbstractController):
         'linear': lambda x: x,
     }
         
-    def __init__(self, inputs, outputs, hidden_layers, a_funcs) -> None:
+    def __init__(self, inputs, outputs, hidden_layers, activations, 
+                    init_weight_range=[-1, 1], 
+                    init_bias_range=[-1, 1]) -> None:
         super().__init__()
-        if len(a_funcs) != len(hidden_layers) + 1:
-            raise Exception(f"Expected {len(hidden_layers) + 1} activation functions, but got {len(a_funcs)}.")
+        if len(activations) != len(hidden_layers) + 1:
+            raise Exception(f"Expected {len(hidden_layers) + 1} activation functions, but got {len(activations)}.")
         
         # Class constants
-        self.activation_functions = a_funcs
+        self.activation_funcs = activations
         self.layers = np.concatenate(([inputs], hidden_layers, [outputs])).astype(int)
+        self.w_range = init_weight_range
+        self.b_range = init_bias_range
         
     def _step_function(self, params, x) -> jax.Array:
-        for (layer), a_func_name in zip(params, self.activation_functions):
+        for (layer), a_func_name in zip(params, self.activation_funcs):
             a = self.a_func_map[a_func_name.lower()]
             x = jnp.dot(x, layer['weights']) + layer['biases']
             x = a(x.flatten())
@@ -74,8 +78,8 @@ class NeuralController(AbstractController):
         params = []
         for receiver in self.layers[1:]:
             params.append({
-                'weights': np.random.uniform(-1, 1, (sender, receiver)),
-                'biases': np.random.uniform(-1, 1, (1, receiver))
+                'weights': np.random.uniform(*self.w_range, (sender, receiver)),
+                'biases': np.random.uniform(*self.b_range, (1, receiver))
             })
             sender = receiver
         return params
