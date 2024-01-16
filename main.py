@@ -31,6 +31,7 @@ if __name__=="__main__":
 
     # Initialize and train system 
     system = ConSys(controller, plant)
+    params = controller.init_params()
     params, mse_log = system.train(**h_params['system'])
     
     # Just some interesting logging/plotting
@@ -51,9 +52,14 @@ if __name__=="__main__":
     print("Test state over time")
     plt.title(f"Simulation state over {test_steps} steps")
     plt.xlabel("Timesteps")
-    plt.ylabel("Current state")
-    plt.ylim((4.5, 5.5)) # fit to this interval
-    plt.plot(state_log)
+    plt.ylabel("State value")
+    # plt.ylim((4.5, 5.5)) # fit to this interval
+    plt.plot(np.array(state_log)[:,0], label="value")
+    # plt.plot(state_log, label="value")
+    # plt.plot(np.array(state_log)[:,1], label="velocity")
+    # plt.plot(np.array(mse_log), label="error")
+    plt.plot([plant.TARGET]*len(state_log), label="target")
+    plt.legend()
     plt.tight_layout()
     plt.show()
 
