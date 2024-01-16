@@ -37,13 +37,15 @@ class ConSys:
             param_log = [0]*(epochs)
         for i in tqdm(range(epochs)):
             
-            # Initialize target, state and noise vector
+            # Initialize state, error and noise vector
             D = gen_noise(steps_per_epoch)
-            target, state = self.plant.reset()
+            state, error = self.plant.reset()
             
             # Compute gradients and error, and update parameters
-            mse, gradients = gradfunc(params, state, target, D, steps_per_epoch, )
+            mse, gradients = gradfunc(params, state, error, D, steps_per_epoch, )
             params = self.controller.update_params(params, learning_rate, gradients)
+
+            print(f"\nError: {mse},\nParameters: {params},\nGradients: {gradients}")
 
             # Log current loss (and parameters)
             mse_log[i] = mse
@@ -51,33 +53,13 @@ class ConSys:
                 param_log[i] = params
 
         return params, mse_log
-    
-    def test(self, params, steps,
-                noise_range=[-.1,.1]):
-        """Test a system using tuned parameters. Returns accumulated simulation state and error."""
-
-        # Initialize variables
-        state, target = self.plant.reset()
-        error = target - state
-        err_hist = jnp.array([error])
-        D = np.random.uniform(*noise_range, steps)
-
-        state_log = [0]*steps
-
-        for t in tqdm(range(steps)):
-            state, _, err_hist = self._step_once(
-                params, state, error, err_hist, D[t])
-            state_log[t] = state
-
-        return state_log, err_hist
 
 
-    def _simulate_one_epoch(self, params, state, target, noise_vector, steps):
+    def _simulate_one_epoch(self, params, state, error, noise_vector, steps):
         """Main differentiable simulation function. Also jittable."""
 
         # Initialize error and history
-        error = target - state
-        err_hist = jnp.array([error])
+        err_hist = jnp.array([error, error])
         
         # Simulate PID and accumulate error
         for t in range(steps):
@@ -99,3 +81,22 @@ class ConSys:
         # Add error to history and return
         err_hist = jnp.append(err_hist, new_error)
         return new_state, new_error, err_hist
+
+    def test(self, params, steps,
+                noise_range=[-.1,.1]):
+        """Test a system using tuned parameters. Returns accumulated simulation state and error."""
+
+        # Initialize variables
+        state, error = self.plant.reset()
+        err_hist = jnp.array([error, error])
+        D = np.random.uniform(*noise_range, steps)
+
+        state_log = [0]*steps
+
+        for t in tqdm(range(steps)):
+            state, error, err_hist = self._step_once(
+                params, state, error, err_hist, D[t])
+            # state_log[t] = state  
+            state_log[t] = state  # TODO: remove this
+
+        return state_log, err_hist

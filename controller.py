@@ -9,10 +9,10 @@ class AbstractController(ABC):
     def __init__(self) -> None:
         super().__init__()
 
-    def step(self, params, e, err_hist,) -> jax.Array:
+    def step(self, params, e, err_hist) -> jax.Array:
         """Entry function for performing one step of controller simulation."""
         # Calcualte PID-error values
-        de = (e - err_hist[-1])
+        de = (e - err_hist[-2])
         ie = jnp.sum(jnp.array(err_hist))
         x = jnp.array([e,ie,de])
 
@@ -38,7 +38,7 @@ class DefaultController(AbstractController):
         return jnp.dot(params,x) # Lin.Alg. version of default PID formula
 
     def init_params(self):
-        return np.array([1,1,1], dtype=float)
+        return np.array([1,0,5], dtype=float)
 
 class StandardController(AbstractController):
     pass
