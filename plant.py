@@ -55,18 +55,38 @@ class BathtubPlant(AbstractPlant):
 
 
 class CournotPlant(AbstractPlant):
-    def __init__(self, state0, target) -> None:
+    def __init__(self, state0, target,
+                    p_max=10,
+                    margin_cost=0.1
+                 ) -> None:
         super().__init__(state0, target)
 
     def _step_function(self, state, U, D) -> Tuple[Array, Array]:
-        return super()._step_function(state, U, D)
+        q1 = q1 + U
+        q2 = q2 + D
+
+        q = q1 + q2
+
+        p = self.p_max - q
+
+        p1 = q1*jnp.floor(p - self.margin_cost)
+
+        return jnp.array([q1, p1])
+    
+    def _error(self, state, target):
+        return super()._error(state[1], target)
+
 
 class RobotArmPlant(AbstractPlant):
     def __init__(self, angle0, target, 
                     dt=.01,
-                    mass=3,
-                    length=1,
+                    mass=1,
+                    length=50,
                     gravity=9.81,
+                    multiplier=50,
+                    coulomb_fric=0.4,
+                    viscous_fric=0.5,
+                    interval=[-0.5*jnp.pi, 0.5*jnp.pi],
                 ) -> None:
         super().__init__(
             jnp.array([angle0, 0], dtype=float),
@@ -75,25 +95,39 @@ class RobotArmPlant(AbstractPlant):
         self.dt = dt
         self.MASS = mass
         self.LENGTH = length
-        self.GRAVITY = gravity
+        self.GRAVITY = gravity 
+        self.MULTIPLIER = multiplier
+        self.INTERVAL = interval
+        self.C_FRIC = coulomb_fric
+        self.V_FRIC = viscous_fric
 
     def _step_function(self, state, U, D) -> Array:
 
-        T = U*100 - self.LENGTH * self.MASS * self.GRAVITY * jnp.cos(state[0])
+        ø = state[0]
+        w = state[1]
+
+        T = self.MULTIPLIER*U - self.LENGTH * self.MASS * self.GRAVITY * jnp.cos(ø)
+        T -= self.C_FRIC*jnp.copysign(1, w) + self.V_FRIC*w # Friction
+
         I = (self.MASS * jnp.power(self.LENGTH, 2)) / 3
+
         a = T / I
 
-        new_w = state[1] + a*self.dt
-        new_ø = state[0] + new_w*self.dt + 0.5*a*jnp.power(self.dt, 2)
-        # new_ø = jnp.fmod(new_ø + jnp.pi, 2*jnp.pi) - jnp.pi
-        # new_ø = jnp.fmod(new_ø - jnp.pi, 2*jnp.pi) + jnp.pi
-        new_ø = jnp.maximum(new_ø, -jnp.pi)
-        new_ø = jnp.minimum(new_ø, jnp.pi)
+        new_w = w + a*(self.dt)
+        new_ø = ø + w*(self.dt)
+        
+        # Check position against boundaries
+        boundary_neg =  jnp.copysign(1, new_ø - self.INTERVAL[0])
+        boundary_pos = -jnp.copysign(1, new_ø - self.INTERVAL[1]) # copy sign to preserve 0 as positive
 
+        # Reflect speed if boundary is breached
+        new_w = boundary_pos*boundary_neg * new_w
 
-        state = jnp.array([new_ø, new_w])
+        # Fix position to boundary
+        new_ø = jnp.maximum(new_ø, self.INTERVAL[0])
+        new_ø = jnp.minimum(new_ø, self.INTERVAL[1])
 
-        return state
+        return jnp.array([new_ø, new_w])
     
     def _error(self, state, target):
         return target - state[0]
