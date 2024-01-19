@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod, abstractclassmethod
 from controller import AbstractController, DefaultController, NeuralController
 from plant import AbstractPlant, BathtubPlant, CournotPlant, RobotArmPlant
 import matplotlib.pyplot as plt
-from config import h_params
+from config import config
 
 class ConSys:
     def __init__(self, controller: AbstractController, 

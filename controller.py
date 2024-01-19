@@ -13,7 +13,7 @@ class AbstractController(ABC):
         """Entry function for performing one step of controller simulation."""
         # Calcualte PID-error values
         de = (e - err_hist[-2])
-        ie = jnp.sum(jnp.array(err_hist))
+        ie = jnp.sum(jnp.array(err_hist), 0)
         x = jnp.array([e,ie,de])
 
         # Perform controller calculation
@@ -34,11 +34,15 @@ class AbstractController(ABC):
         )
 
 class DefaultController(AbstractController):
+    def __init__(self, params_range=[0, 1]) -> None:
+        super().__init__()
+        self.PARAMS_RANGE = params_range
+
     def _step_function(self, params, e):
         return jnp.dot(params, e) # Lin.Alg. version of default PID formula
 
     def init_params(self):
-        return np.array([10  ,  0.1  , 0.1], dtype=float)
+        return np.random.uniform(*self.PARAMS_RANGE, 3)
 
 class StandardController(AbstractController):
     pass
@@ -67,6 +71,7 @@ class NeuralController(AbstractController):
         self.b_range = init_bias_range
         
     def _step_function(self, params, x) -> jax.Array:
+        x = x.flatten()
         for (layer), a_func_name in zip(params, self.activation_funcs):
             a = self.a_func_map[a_func_name.lower()]
             x = jnp.dot(x, layer['weights']) + layer['biases']

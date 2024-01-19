@@ -9,7 +9,7 @@ from typing import Tuple
 class AbstractPlant(ABC):
     # class State:
     #     value = 0
-    def __init__(self, state0, target) -> None:
+    def __init__(self, state0: Array, target: float|Array) -> None:
         self.STATE0 = state0 # Initial state
         self.TARGET = target # Target state
         self.ERROR0 = self._error(state0, target) # Initial error
@@ -21,7 +21,7 @@ class AbstractPlant(ABC):
         return state, error
 
     @abstractmethod
-    def _step_function(self, state, U, D) -> Tuple[jax.Array, jax.Array]:
+    def _step_function(self, state: Array, U:float|Array, D: float|Array) -> Tuple[jax.Array, jax.Array]:
         """Plant specific step function. This method should be overridden with per-plant state transition logic."""
         pass
 
@@ -60,14 +60,14 @@ class CournotPlant(AbstractPlant):
                     margin_cost=0.1
                  ) -> None:
         super().__init__(jnp.array([
-                0, # p1
+                0.0, # p1
                 0.5, # q1
                 0.5  # q2
-            ]), target)
+            ],dtype=float), target)
         self.MAX_PRICE = max_price
         self.MARGIN_COST = margin_cost
 
-    def _step_function(self, state, U, D) -> Tuple[Array, Array]:
+    def _step_function(self, state, U, D) -> Array:
         p1, q1, q2 = state # Unpack vars
 
         # Update quantities
@@ -106,7 +106,7 @@ class RobotArmPlant(AbstractPlant):
                 ) -> None:
         super().__init__(
             jnp.array([angle0, 0], dtype=float),
-            target
+            jnp.array(target)
         )
         self.DELTA_TIME = delta_time
         self.MASS = mass
