@@ -26,10 +26,10 @@ class AbstractPlant(ABC):
         pass
 
     def _error(self, state, target):
-        return target - state
+        return target - state[0]
 
     def reset(self) -> Tuple[jax.Array, jax.Array]:
-        """Returns tuple of initial state and target state."""
+        """Returns tuple of initial state and error."""
         return self.STATE0, self.ERROR0
 
 
@@ -38,7 +38,7 @@ class BathtubPlant(AbstractPlant):
                 area=100, 
                 cross_section=1, 
                 gravity=9.81) -> None:
-        super().__init__(target, target) # state0 = target
+        super().__init__(jnp.array([target]), target) # state0 = target
         self.AREA = area
         self.CROSS_SECTION_DRAIN = cross_section
         self.GRAVITY = gravity
@@ -55,31 +55,47 @@ class BathtubPlant(AbstractPlant):
 
 
 class CournotPlant(AbstractPlant):
-    def __init__(self, state0, target,
-                    p_max=10,
+    def __init__(self, target,
+                    max_price=10,
                     margin_cost=0.1
                  ) -> None:
-        super().__init__(state0, target)
+        super().__init__(jnp.array([
+                0, # p1
+                0.5, # q1
+                0.5  # q2
+            ]), target)
+        self.MAX_PRICE = max_price
+        self.MARGIN_COST = margin_cost
 
     def _step_function(self, state, U, D) -> Tuple[Array, Array]:
-        q1 = q1 + U
-        q2 = q2 + D
+        p1, q1, q2 = state # Unpack vars
 
+        # Update quantities
+        q1 += U
+        q2 += D
+
+        # Enforce limits
+        q1, q2 = jnp.maximum(jnp.array([q1, q2]), 0)
+        q1, q2 = jnp.minimum(jnp.array([q1, q2]), 1)
+
+        # Sum quantity
         q = q1 + q2
 
-        p = self.p_max - q
+        # Calculate global price
+        p = self.MAX_PRICE - q
 
-        p1 = q1*jnp.floor(p - self.margin_cost)
+        # Calculate price for 1
+        p1 = q1*(p - self.MARGIN_COST)
 
-        return jnp.array([q1, p1])
+        return jnp.array([p1, q1, q2])
     
     def _error(self, state, target):
-        return super()._error(state[1], target)
+        return target - state[0]
 
 
 class RobotArmPlant(AbstractPlant):
     def __init__(self, angle0, target, 
-                    dt=.01,
+                    delta_time=.01,
                     mass=1,
                     length=50,
                     gravity=9.81,
@@ -92,7 +108,7 @@ class RobotArmPlant(AbstractPlant):
             jnp.array([angle0, 0], dtype=float),
             target
         )
-        self.dt = dt
+        self.DELTA_TIME = delta_time
         self.MASS = mass
         self.LENGTH = length
         self.GRAVITY = gravity 
@@ -106,15 +122,15 @@ class RobotArmPlant(AbstractPlant):
         ø = state[0]
         w = state[1]
 
-        T = self.MULTIPLIER*U - self.LENGTH * self.MASS * self.GRAVITY * jnp.cos(ø)
+        T = self.MULTIPLIER*U - self.LENGTH * self.MASS * self.GRAVITY * jnp.cos(ø) + D
         T -= self.C_FRIC*jnp.copysign(1, w) + self.V_FRIC*w # Friction
 
         I = (self.MASS * jnp.power(self.LENGTH, 2)) / 3
 
         a = T / I
 
-        new_w = w + a*(self.dt)
-        new_ø = ø + w*(self.dt)
+        new_w = w + a*(self.DELTA_TIME)
+        new_ø = ø + new_w*(self.DELTA_TIME)
         
         # Check position against boundaries
         boundary_neg =  jnp.copysign(1, new_ø - self.INTERVAL[0])

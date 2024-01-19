@@ -29,8 +29,11 @@ if __name__=="__main__":
     else:
         raise ValueError(f"Invalid controller name given: '{controller_name}'")
 
+    if h_params['debug']:
+        h_params['system']['enable_jit'] = False
+
     # Initialize and train system 
-    system = ConSys(controller, plant)
+    system = ConSys(controller, plant, debug=h_params['debug'])
     params = controller.init_params()
     params, mse_log = system.train(**h_params['system'])
     
@@ -54,7 +57,7 @@ if __name__=="__main__":
     plt.xlabel("Timesteps")
     plt.ylabel("State value")
     # plt.ylim((4.5, 5.5)) # fit to this interval
-    plt.plot(np.array(state_log)[:,0], label="value")
+    plt.plot(np.array(state_log), label="value")
     # plt.plot(state_log, label="value")
     # plt.plot(np.array(state_log)[:,1], label="velocity")
     # plt.plot(np.array(mse_log), label="error")
@@ -62,4 +65,3 @@ if __name__=="__main__":
     plt.legend()
     plt.tight_layout()
     plt.show()
-

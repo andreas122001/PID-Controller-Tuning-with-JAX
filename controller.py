@@ -34,11 +34,11 @@ class AbstractController(ABC):
         )
 
 class DefaultController(AbstractController):
-    def _step_function(self, params, x):
-        return jnp.dot(params,x) # Lin.Alg. version of default PID formula
+    def _step_function(self, params, e):
+        return jnp.dot(params, e) # Lin.Alg. version of default PID formula
 
     def init_params(self):
-        return np.array([1,0,5], dtype=float)
+        return np.array([10  ,  0.1  , 0.1], dtype=float)
 
 class StandardController(AbstractController):
     pass
