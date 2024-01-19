@@ -10,10 +10,11 @@ from config import h_params
 
 class ConSys:
     def __init__(self, controller: AbstractController, 
-                        plant: AbstractPlant) -> None:
+                        plant: AbstractPlant, debug=False) -> None:
         self.controller = controller
         self.plant = plant
-        self._step_once = jax.jit(self._step_once) # should be jitted anyway, why not
+        if not debug:
+            self._step_once = jax.jit(self._step_once) # should be jitted anyway, why not
 
     def train(self, epochs, 
                 learning_rate=0.05, 
@@ -68,7 +69,7 @@ class ConSys:
             )
         
         # Compute MSE from error history
-        return jnp.sum(jnp.array([e**2 for e in err_hist]))
+        return jnp.mean(jnp.array([e**2 for e in err_hist]))
 
     def _step_once(self, params, state, error, err_hist, noise):
         """Performs one step of PID simulation and updates state and error."""
@@ -97,6 +98,6 @@ class ConSys:
             state, error, err_hist = self._step_once(
                 params, state, error, err_hist, D[t])
             # state_log[t] = state  
-            state_log[t] = state  # TODO: remove this
+            state_log[t] = state[0]  # TODO: remove this
 
         return state_log, err_hist
