@@ -34,8 +34,7 @@ class ConSys:
             gradfunc = jax.jit(gradfunc, static_argnames=['steps'])
 
         mse_log = [0]*(epochs)
-        if enable_param_logging:
-            param_log = [0]*(epochs)
+        param_log = [0]*(epochs) if enable_param_logging else [0]
         for i in tqdm(range(epochs)):
             
             # Initialize state, error and noise vector
@@ -43,7 +42,7 @@ class ConSys:
             state, error = self.plant.reset()
             
             # Compute gradients and error, and update parameters
-            mse, gradients = gradfunc(params, state, error, D, steps_per_epoch, )
+            mse, gradients = gradfunc(params, state, error, D, steps_per_epoch)
             params = self.controller.update_params(params, learning_rate, gradients)
 
             print(f"\nError: {mse},\nParameters: {params},\nGradients: {gradients}")
@@ -53,7 +52,7 @@ class ConSys:
             if enable_param_logging:
                 param_log[i] = params
 
-        return params, mse_log
+        return params, mse_log, param_log
 
 
     def _simulate_one_epoch(self, params, state, error, noise_vector, steps):
@@ -97,7 +96,6 @@ class ConSys:
         for t in tqdm(range(steps)):
             state, error, err_hist = self._step_once(
                 params, state, error, err_hist, D[t])
-            # state_log[t] = state  
-            state_log[t] = state[0]  # TODO: remove this
+            state_log[t] = state[0]
 
         return state_log, err_hist

@@ -1,9 +1,5 @@
 import numpy as np
-import jax
-import jax.numpy as jnp
-from tqdm import tqdm
-from abc import ABC, abstractmethod, abstractclassmethod
-from controller import AbstractController, DefaultController, NeuralController, create_controller
+from controller import create_controller
 from plant import create_plant
 import matplotlib.pyplot as plt
 from config import config
@@ -21,19 +17,34 @@ if __name__=="__main__":
 
     # Initialize and train system 
     system = ConSys(controller, plant, debug=config['system']['debug'])
-    # params = controller.init_params()
-    params, mse_log = system.train(**config['system']['train'])
-    
+    params = controller.init_params()
+
+    params, mse_log, param_log = system.train(**config['system']['train'])
+    param_log = np.array(param_log)
+
     # Just some interesting logging/plotting
     print(f"Tuned Parameters: {params}")
     print("Logging MSE")
-    plt.figure("Mean Squared Error (MSE)")
-    plt.title("Mean Squared Error (MSE)")
-    plt.xlabel("Timesteps")
-    plt.ylabel("MSE")
+    plt.figure("Loss (MSE)")
+    plt.title("Loss (MSE)")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
     plt.plot(mse_log)
     plt.tight_layout()
+
+    # ugly hardcoding but works
+    if config['controller']['name'] == "default" and config['system']['train']['enable_param_logging']: 
+        plt.figure("Control Parameters")
+        plt.title("Control Parameters")
+        plt.xlabel("Epoch")
+        plt.ylabel("Value")
+        plt.plot(param_log[:,0], label="$K_p$")
+        plt.plot(param_log[:,1], label="$K_i$")
+        plt.plot(param_log[:,2], label="$K_d$")
+        plt.legend()
+        plt.tight_layout()
     plt.show()
+
 
     # Test the system
     print("Testing parameters")
@@ -45,11 +56,8 @@ if __name__=="__main__":
     plt.title(f"Simulation state over {test_steps} steps")
     plt.xlabel("Timesteps")
     plt.ylabel("State value")
-    plt.ylim((plant.TARGET-0.5, plant.TARGET+0.5)) # to give a normalized scale (easy to compare)
+    plt.ylim((plant.TARGET-1.0, plant.TARGET+1.0)) # to give a normalized scale (easy to compare)
     plt.plot(np.array(state_log), label="value")
-    # plt.plot(state_log, label="value")
-    # plt.plot(np.array(state_log)[:,1], label="velocity")
-    # plt.plot(np.array(mse_log), label="error")
     plt.plot([plant.TARGET]*len(state_log), label="target")
     plt.legend()
     plt.tight_layout()
