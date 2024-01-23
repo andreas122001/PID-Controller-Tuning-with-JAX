@@ -4,6 +4,19 @@ import jax
 import jax.numpy as jnp
 from tqdm import tqdm
 from abc import ABC, abstractmethod, abstractclassmethod
+from typing import Tuple, Dict
+
+def create_controller(config: Dict):
+    """Method for constructing a controller. Call it a 'pythonic controller-factory'."""
+    name = config['name']
+    args = config[name]
+    if name == "default":
+        controller = DefaultController(**args)
+    elif name == "neural":
+        controller = NeuralController(**args)
+    else:
+        raise NotImplementedError(f"Controller with name '{name}' is not supported.")
+    return controller
 
 class AbstractController(ABC):
     def __init__(self) -> None:

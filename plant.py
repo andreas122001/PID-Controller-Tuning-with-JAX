@@ -3,8 +3,22 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from tqdm import tqdm
-from abc import ABC, abstractmethod, abstractclassmethod
-from typing import Tuple
+from abc import ABC, abstractmethod
+from typing import Tuple, Dict
+
+def create_plant(config: Dict):
+    """Method for constructing a plant. Call it a 'pythonic factory'."""
+    name = config['name']
+    args = config[name]
+    if name == 'bathtub':
+        plant = BathtubPlant(**args)
+    elif name == 'cournot':
+        plant = CournotPlant(**args)
+    elif name == "robot":
+        plant = RobotArmPlant(**args)
+    else:
+        raise NotImplementedError(f"Plant with name '{name}' is not supported.")
+    return plant
 
 class AbstractPlant(ABC):
     # class State:
@@ -151,3 +165,5 @@ class RobotArmPlant(AbstractPlant):
 
 class HyperparamTuner(AbstractPlant):
     pass
+
+
