@@ -72,7 +72,7 @@ class CournotPlant(AbstractPlant):
     def __init__(self, target,
                     max_price=10,
                     margin_cost=0.1
-                 ) -> None:
+                ) -> None:
         super().__init__(jnp.array([
                 0.0, # p1
                 0.5, # q1
@@ -136,7 +136,7 @@ class RobotArmPlant(AbstractPlant):
         ø = state[0]
         w = state[1]
 
-        T = self.MULTIPLIER*U - self.LENGTH * self.MASS * self.GRAVITY * jnp.cos(ø) + D
+        T = self.MULTIPLIER*U - 0.5*self.LENGTH * self.MASS * self.GRAVITY * jnp.cos(ø) + D
         T -= self.C_FRIC*jnp.copysign(1, w) + self.V_FRIC*w # Friction
 
         I = (self.MASS * jnp.power(self.LENGTH, 2)) / 3
@@ -160,8 +160,7 @@ class RobotArmPlant(AbstractPlant):
         return jnp.array([new_ø, new_w])
     
     def _error(self, state, target):
-        return target - state[0]
-        # return jnp.mod(target - state[0], jnp.pi)
+        return target - state[0] - state[1]
 
 class HyperparamTuner(AbstractPlant):
     pass
