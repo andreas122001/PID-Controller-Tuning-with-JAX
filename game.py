@@ -61,6 +61,11 @@ def main():
     # plant = CournotPlant(**config['plant']['cournot'])
     # plant = BathtubPlant(**config['plant']['bathtub'])
 
+    params = np.array([
+        10,
+        2,
+        5,
+    ], dtype=float)
     
     state, error = plant.reset()
     err_hist = np.array([error, error])
@@ -75,12 +80,13 @@ def main():
             pygame.quit()
 
         if keys[pygame.K_LEFT]:
-            U = -12
+            U = -12 # Change this depending on needed stength
         elif keys[pygame.K_RIGHT]:
             U = 12
         else:
             U = 0
-        # U = pid(params, err_hist)
+        # Uncomment this if you want automatic control
+        U = pid(params, err_hist)
 
         # Update angle based on torque or any other mechanism
         state, error = plant.step(state, U, np.random.uniform(-0.01, 0.01))
@@ -89,7 +95,7 @@ def main():
         screen.fill(BLACK)
 
         # Draw the pole and circle
-        draw_pole(state[0]*(np.pi / plant.TARGET), plant.TARGET*(np.pi / plant.TARGET))
+        draw_pole(state[0], plant.TARGET)
 
         # Update the display
         pygame.display.flip()

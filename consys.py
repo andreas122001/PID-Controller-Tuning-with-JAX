@@ -86,6 +86,8 @@ class ConSys:
                 noise_range=[-.1,.1]):
         """Test a system using tuned parameters. Returns accumulated simulation state and error."""
 
+        from game import sim_step
+
         # Initialize variables
         state, error = self.plant.reset()
         err_hist = jnp.array([error, error])
@@ -97,5 +99,6 @@ class ConSys:
             state, error, err_hist = self._step_once(
                 params, state, error, err_hist, D[t])
             state_log[t] = state[0]
+            sim_step(state[0], self.plant.TARGET)
 
         return state_log, err_hist
