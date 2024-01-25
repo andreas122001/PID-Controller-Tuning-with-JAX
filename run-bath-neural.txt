@@ -2,7 +2,7 @@ config = {
     "system": {
         "train": {
             "epochs": 1000,
-            "steps_per_epoch": 40,
+            "steps_per_epoch": 30,
             "learning_rate": 0.01,
             "noise_range": [-0.01, 0.01],
             "enable_jit": True,
@@ -37,7 +37,7 @@ config = {
             "gravity": 9.81
         },
         "cournot": {
-            "target": 0.3,
+            "target": 0.5,
             "max_price": 2.1,
             "margin_cost": 0.1
         },

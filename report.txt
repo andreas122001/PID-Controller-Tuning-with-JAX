@@ -1,0 +1,44 @@
+# bathtub
+target          &   $3.14$ \\
+area            &   $100$ \\
+cross\_section  &   $1.0$ \\
+gravity         &   $9.81$
+
+# Cournot
+target          &    $3.14$ \\
+max\_price      &    $10$ \\
+margin\_cost    &    $0.1$ \\
+
+# Robot
+target          &    $0.25*3.14    $  \\
+angle0          &    $0.0          $  \\
+delta\_time     &    $0.1          $  \\
+mass            &    $0.5          $  \\
+length          &    $2.0          $  \\
+gravity         &    $9.81         $  \\
+multiplier      &    $1            $  \\
+coulomb\_fric   &    $0.4          $  \\
+viscous\_fric   &    $0.6          $  \\
+interval        &    $^+_-3.14     $  \\
+
+
+# System
+epochs              &   $1000$      \\
+steps\_per\_epoch   &   $40$        \\
+learning\_rate      &   $0.01$      \\
+noise\_range        &   $^+_-0.01$  \\
+
+
+# Default
+params\_range   &   $[0,1)$ \\
+
+# Neural
+inputs                  &   $3$ \\
+outputs                 &   $1$ \\
+hidden\_layers          &   $[3]$ \\
+activations             &   $['linear','linear']$ \\
+init\_weight\_range     &   $[0,1)$ \\
+init\_bias\_range       &   $[0,1)$ \\
+
+
+

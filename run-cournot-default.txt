@@ -1,9 +1,10 @@
+
 config = {
     "system": {
         "train": {
             "epochs": 1000,
-            "steps_per_epoch": 40,
-            "learning_rate": 0.01,
+            "steps_per_epoch": 20,
+            "learning_rate": 0.001,
             "noise_range": [-0.01, 0.01],
             "enable_jit": True,
             "enable_param_logging": True
@@ -14,7 +15,7 @@ config = {
         "do_train": True
     },
     "controller": {
-        "name": "neural",
+        "name": "default",
         "default": {
             "params_range": [0,1],
             # "initial_params": [2.8242931, 3.2902865, 0.5268919]
@@ -29,7 +30,7 @@ config = {
         }
     },
     "plant": {
-        "name": "bathtub",
+        "name": "cournot",
         "bathtub": {
             "target": 3.14,
             "area": 100,

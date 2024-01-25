@@ -24,8 +24,7 @@ if __name__=="__main__":
 
     # Just some interesting logging/plotting
     print(f"Tuned Parameters: {params}")
-    print("Logging MSE")
-    plt.figure("Loss (MSE)")
+    plt.figure(f"Loss (MSE) [{config['plant']['name']}-{config['controller']['name']}]")
     plt.title("Loss (MSE)")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
@@ -34,7 +33,7 @@ if __name__=="__main__":
 
     # ugly hardcoding but works
     if config['controller']['name'] == "default" and config['system']['train']['enable_param_logging']: 
-        plt.figure("Control Parameters")
+        plt.figure(f"Control Parameters [{config['plant']['name']}]")
         plt.title("Control Parameters")
         plt.xlabel("Epoch")
         plt.ylabel("Value")
@@ -47,18 +46,18 @@ if __name__=="__main__":
 
 
     # Test the system
-    print("Testing parameters")
-    test_steps = config['system']['test_steps']
-    state_log, mse_log = system.test(params, test_steps)
-    
-    print("Test state over time")
-    plt.figure("Simulation")
-    plt.title(f"Simulation state over {test_steps} steps")
-    plt.xlabel("Timesteps")
-    plt.ylabel("State value")
-    plt.ylim((plant.TARGET-1.0, plant.TARGET+1.0)) # to give a normalized scale (easy to compare)
-    plt.plot(np.array(state_log), label="value")
-    plt.plot([plant.TARGET]*len(state_log), label="target")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    if config['system']['do_test']:
+        print("Testing parameters")
+        test_steps = config['system']['test_steps']
+        state_log, mse_log = system.test(params, test_steps)
+        
+        plt.figure(f"Simulation - [{config['plant']['name']}-{config['controller']['name']}]")
+        plt.title(f"State over {test_steps} steps")
+        plt.xlabel("Timesteps")
+        plt.ylabel("Value")
+        plt.ylim((plant.TARGET-1.0, plant.TARGET+1.0)) # to give a normalized scale (easy to compare)
+        plt.plot(np.array(state_log), label="value")
+        plt.plot([plant.TARGET]*len(state_log), label="target")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()

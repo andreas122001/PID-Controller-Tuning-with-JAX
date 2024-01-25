@@ -13,9 +13,6 @@ def pid(params, err_hist):
 
     return np.dot(params, x)
 
-# Initialize Pygame
-pygame.init()
-
 # Constants
 WIDTH, HEIGHT = 800, 600
 CENTER_X, CENTER_Y = WIDTH // 2, HEIGHT // 2
@@ -27,6 +24,8 @@ RED = (255, 50, 100)
 BLACK = (0, 0, 0)
 GREEN = (50, 255, 100)
 
+# Initialize Pygame
+pygame.init()
 
 # Set up the display
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -48,14 +47,20 @@ def draw_pole(angle, target):
     pygame.draw.circle(screen, GREEN, (target_end_x, target_end_y), 7)
     pygame.draw.circle(screen, RED, (pole_end_x, pole_end_y), 7) 
 
+def sim_step(state, target):
+    screen.fill(BLACK)
+    draw_pole(state, target)
+    pygame.display.flip()
+    clock.tick(60)
+
+
 # Main simulation loop
 def main():
-    # config['plant']['robot']['delta_time'] = .01
-    # plant = RobotArmPlant(**config['plant']['robot'])
+    config['plant']['robot']['delta_time'] = .01
+    plant = RobotArmPlant(**config['plant']['robot'])
     # plant = CournotPlant(**config['plant']['cournot'])
-    plant = BathtubPlant(**config['plant']['bathtub'])
+    # plant = BathtubPlant(**config['plant']['bathtub'])
 
-    params = np.array([1, 0.2, 0.1])
     
     state, error = plant.reset()
     err_hist = np.array([error, error])
@@ -70,9 +75,9 @@ def main():
             pygame.quit()
 
         if keys[pygame.K_LEFT]:
-            U = -4.5
+            U = -12
         elif keys[pygame.K_RIGHT]:
-            U = 4.5
+            U = 12
         else:
             U = 0
         # U = pid(params, err_hist)
@@ -84,7 +89,7 @@ def main():
         screen.fill(BLACK)
 
         # Draw the pole and circle
-        draw_pole(state[0]*np.pi, plant.TARGET*np.pi)
+        draw_pole(state[0]*(np.pi / plant.TARGET), plant.TARGET*(np.pi / plant.TARGET))
 
         # Update the display
         pygame.display.flip()
