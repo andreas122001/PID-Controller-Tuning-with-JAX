@@ -47,15 +47,16 @@ class AbstractController(ABC):
         )
 
 class DefaultController(AbstractController):
-    def __init__(self, params_range=[0, 1]) -> None:
+    def __init__(self, params_range=[0, 1], initial_params=None) -> None:
         super().__init__()
         self.PARAMS_RANGE = params_range
+        self.INITIAL_PARAMS = initial_params
 
     def _step_function(self, params, e):
         return jnp.dot(params, e) # Lin.Alg. version of default PID formula
 
     def init_params(self):
-        return np.random.uniform(*self.PARAMS_RANGE, 3)
+        return np.array(self.INITIAL_PARAMS) if self.INITIAL_PARAMS else np.random.uniform(*self.PARAMS_RANGE, 3)
 
 class StandardController(AbstractController):
     pass
